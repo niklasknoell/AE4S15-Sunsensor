@@ -8,14 +8,20 @@ int sens_array[] = {A0, A1, A2, A3, A4, A5, A6, A7};
 int too_dark_threshold = 1015;
 int too_bright_threshold = 3;
 
-void get_sun_sensor(int *ADC_readings, BLA::Matrix<3> *s);
+void get_sun_vector(int *ADC_readings, BLA::Matrix<3> *s);
+
+const byte n_bytes = 32;
+char rx_buffer[n_bytes];
+char rx_num[5]; // allow for a 4 digit number + termination
+
+int loop_delay = 100;
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600); // just to spit out some status
 }
 
-void get_sun_sensor(int *ADC_readings, BLA::Matrix<3>* s){
+void get_sun_vector(int *ADC_readings, BLA::Matrix<3> *s){
   
   int intensities[4] = {0};
 
@@ -67,7 +73,6 @@ void get_sun_sensor(int *ADC_readings, BLA::Matrix<3>* s){
   BLA::Matrix<4,1> I = {intensities[0], intensities[1], intensities[2], intensities[3]};
 
   *s = Inverse(~N * N) * ~N * I;
-
   return 0;
 }
 
@@ -80,7 +85,7 @@ void loop() {
   }
 
   BLA::Matrix<3,1> s;
-  get_sun_sensor(readings, &s);
+  get_sun_vector(readings, &s);
 
   // Serial.print("Raw values: \n");
   // for (int i = 0; i < 8; i++){
@@ -89,7 +94,7 @@ void loop() {
   //   Serial.print(" ");
   // }
 
-  delay(100);
+  delay(loop_delay);
 
   Serial.print("X:");
   Serial.print(s(0), DEC);
@@ -98,4 +103,32 @@ void loop() {
   Serial.print(" Z:");
   Serial.print(s(2), DEC);
   Serial.print("\n");
+
+  // Check if the user is sending data over serial:
+  if (Serial.available() > 0){
+    Serial.readBytesUntil('\0', rx_buffer, n_bytes);
+    Serial.println(rx_buffer);
+    
+    for (int i = 0; i < 4; i++){
+      rx_num[i] = rx_buffer[i+1];
+    }
+    rx_num[4] = '\0';
+
+    if (rx_buffer[0] == 'l'){
+      if (atoi(rx_num) != 0){
+        too_bright_threshold = atoi(rx_num);
+        Serial.println(rx_num); // for debugging
+      }
+    }
+    else if (rx_buffer[0] == 'u'){
+      if (atoi(rx_num) != 0){
+        too_dark_threshold = atoi(rx_num);
+        Serial.println(rx_num);
+      }
+    }
+    else{
+      Serial.println("FAIL");
+    }
+  }
+
 }

@@ -5,7 +5,7 @@ import numpy as np
 
 
 running = True
-
+ 
 
 def get_coords(bytestring):
     l = bytestring.split()
